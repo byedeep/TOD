@@ -1,0 +1,4 @@
+{"schema_version":1,"capture_id":"00000000-0000-4000-8000-000000000001","sequence":1,"elapsed_ms":0,"type":"capture_start","payload":{"kind":"synthetic-tool-test-not-live-evidence"}}
+{"schema_version":1,"capture_id":"00000000-0000-4000-8000-000000000001","sequence":2,"elapsed_ms":1000,"type":"snapshot","payload":{"sidebar_title":"BED WARS","islands_manually_confirmed":true,"participants":[{"visible_name":"ExamplePlayer","supplied_uuid":"00000000-0000-4000-8000-000000000002","identity_status":"unresolved","team_prefix":"§c"}]}}
+{"schema_version":1,"capture_id":"00000000-0000-4000-8000-000000000001","sequence":3,"elapsed_ms":2000,"type":"message_candidate","payload":{"formatted_text":"ExamplePlayer fell into the void.","classification":"unvalidated-system-candidate"}}
+{"schema_version":1,"capture_id":"00000000-0000-4000-8000-000000000001","type":"capture_end","payload":{"dropped":0,"written":3}}

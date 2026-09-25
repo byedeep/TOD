@@ -1,0 +1,34 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-20211118.174922-42'
+    }
+}
+apply plugin: 'net.minecraftforge.gradle.forge'
+version = '0.1.0-diagnostic'
+group = 'dev.bedwarscompanion'
+archivesBaseName = 'bedwars-capture'
+sourceCompatibility = targetCompatibility = '1.8'
+minecraft {
+    version = '1.8.9-11.15.1.2318-1.8.9'
+    runDir = 'run'
+    mappings = 'stable_22'
+    makeObfSourceJar = false
+}
+repositories { mavenCentral() }
+dependencies { testCompile 'junit:junit:4.13.2' }
+tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
+
+// ForgeGradle 2.1 hardcodes obsolete HTTP asset URLs and swallows failures.
+// Keep its index task, but fetch assets over HTTPS with hash checks and fail on error.
+getAssets {
+    actions = []
+    doLast {
+        exec {
+            commandLine 'python3', file('../scripts/download_assets.py'), getAssetsIndex(), getAssetsDir()
+        }
+    }
+}

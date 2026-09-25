@@ -1,0 +1,10 @@
+.tools/
+.gradle/
+**/build/
+mod/run/
+bin/
+*.log
+*.sqlite*
+.env
+captures/
+__pycache__/

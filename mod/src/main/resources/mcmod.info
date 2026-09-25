@@ -1,0 +1,9 @@
+[{
+  "modid": "bedwarscapture",
+  "name": "Bed Wars Capture (Diagnostic)",
+  "description": "Opt-in diagnostic match signals. No replays or account lookups.",
+  "version": "0.1.0-diagnostic",
+  "mcversion": "1.8.9",
+  "authorList": ["Bed Wars Companion"],
+  "clientSideOnly": true
+}]
