@@ -5,6 +5,8 @@ Based on [`TOD.md`](TOD.md).
 ## Agreed target
 
 Full feature preview, Linux first, standalone Forge 1.8.9, English Solo Bed Wars.
+Diagnostic gameplay testing also includes English Doubles and 3v3v3v3 at the
+user's request; live evidence and coverage are tracked separately for each mode.
 One Minecraft client observes matches. The user supplies live gameplay testing and
 configures Discord/Hypixel credentials locally when integrations are reached.
 “Recording” means match event logging, not video, audio, movement or world replay.

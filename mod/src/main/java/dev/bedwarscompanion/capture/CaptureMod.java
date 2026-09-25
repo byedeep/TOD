@@ -28,6 +28,7 @@ public class CaptureMod {
     private String lastWarning = "";
     private int ticks;
     private long rejectedChat;
+    private String captureMode = "unspecified";
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
@@ -84,6 +85,7 @@ public class CaptureMod {
             return;
         }
         Map<String, Object> data = map("sidebar_title", clip(objective.getDisplayName()));
+        data.put("manually_selected_mode", captureMode);
         List<String> lines = new ArrayList<>();
         for (Score score : board.getSortedScores(objective)) {
             String name = score.getPlayerName();
@@ -148,7 +150,7 @@ public class CaptureMod {
     private class CaptureCommand extends CommandBase {
         @Override public String getCommandName() { return "bwcapture"; }
         @Override public String getCommandUsage(ICommandSender sender) {
-            return "/bwcapture start|islands|pause|status|stop|mark <spawn|bed|kill|final|spectating|rejoin|end>";
+            return "/bwcapture start [solo|doubles|3v3v3v3] | islands | pause | status | stop | mark <spawn|bed|kill|final|spectating|rejoin|end>";
         }
         @Override public int getRequiredPermissionLevel() { return 0; }
         @Override public boolean canCommandSenderUseCommand(ICommandSender sender) { return true; }
@@ -157,10 +159,20 @@ public class CaptureMod {
             switch (args[0]) {
                 case "start":
                     if (writer != null && !writer.finished()) { tell("A capture is active or draining. " + writer.status()); return; }
+                    String mode = args.length == 1 ? "unspecified" : args[1].toLowerCase(Locale.ROOT);
+                    if (mode.equals("duos")) mode = "doubles";
+                    if (mode.equals("3s") || mode.equals("threes")) mode = "3v3v3v3";
+                    if (args.length > 2 || (args.length == 2 && !Arrays.asList("solo", "doubles", "3v3v3v3").contains(mode))) {
+                        tell(getCommandUsage(sender)); return;
+                    }
+                    captureMode = mode;
                     Path path = mc.mcDataDir.toPath().resolve("bedwars-companion/captures");
                     writer = new DiagnosticWriter(path);
+                    Map<String, Object> modeMarker = map("label", "mode-selected");
+                    modeMarker.put("manually_selected_mode", captureMode);
+                    writer.emit("manual_marker", modeMarker);
                     islands = false; connected = mc.theWorld != null; previousSnapshot = null; lastWarning = ""; rejectedChat = 0;
-                    tell("Diagnostic capture started. On your island, run /bwcapture islands. No account lookups.");
+                    tell("Diagnostic capture started (mode=" + captureMode + "). On your island, run /bwcapture islands. No account lookups.");
                     break;
                 case "islands":
                     if (!active()) return;
@@ -181,7 +193,7 @@ public class CaptureMod {
                     tell("Stopping asynchronously. " + writer.file());
                     break;
                 case "status":
-                    tell(writer == null ? "Capture off." : writer.status() + "; roster=" + islands + "; " + writer.file());
+                    tell(writer == null ? "Capture off." : writer.status() + "; mode=" + captureMode + "; roster=" + islands + "; " + writer.file());
                     break;
                 case "mark":
                     if (!active()) return;

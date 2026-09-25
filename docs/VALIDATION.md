@@ -23,6 +23,11 @@ Forge/mod initialization. No claim is made about live in-game performance yet.
 
 ## Step 2: diagnostic tooling ready, live experiment pending
 
+Diagnostic capture accepts manual Solo, Doubles and 3v3v3v3 mode labels via
+`/bwcapture start <mode>`. Existing roster sampling retains multiple players per
+team without a Solo restriction. All three modes still need live validation;
+mode labels are user-supplied context, not automatic detection.
+
 Implemented: opt-in commands, one-second changed snapshots, manually gated
 island rosters, raw team metadata, selected formatted message candidates, fixed
 manual markers, world/disconnect gate resets, asynchronous bounded JSONL writing,

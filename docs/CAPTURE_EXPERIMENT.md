@@ -1,4 +1,4 @@
-# TOD — Step 2: live Solo capture experiment
+# TOD — Step 2: live Solo, Doubles and 3v3v3v3 capture experiment
 
 ## Goal and boundary
 
@@ -21,7 +21,9 @@ and extend selection using reviewed examples, without enabling whole-chat loggin
 
 ## Runbook
 
-Use the commands in the README. Capture at least three Solo matches, stopping
+Use the mode-labelled start commands in the README. Capture the modes you are
+playing; track evidence separately for Solo, Doubles and 3v3v3v3. Aim for at
+least three matches per mode before drawing coverage conclusions, stopping
 between games. Include a game spectated after elimination and a disconnect/rejoin
 when practical. Do not disrupt other players just to manufacture an event.
 After reconnect or loss of the Bed Wars sidebar, confirm islands again. Use
@@ -35,7 +37,7 @@ because synthetic tests pass.
 | Question | Evidence to collect | Current result |
 | --- | --- | --- |
 | Start/end detection | Countdown, island arrival, active sidebar, victory/defeat | Pending live capture |
-| Roster completeness | Visible Solo roster vs tab profiles at spawn and later revisions | Pending |
+| Roster completeness | Visible roster vs tab profiles at spawn and later revisions; check all teammates in Doubles and 3v3v3v3 | Pending in each mode |
 | Teams vs rank colours | Profile display, scoreboard prefix/suffix/format, actual island team | Pending |
 | Identity confirmation | Whether any supplied identity has reliable account evidence | Pending; supplied UUID is not proof |
 | Beds | Attributed break, unattributed/system removal, sidebar transition | Pending |
@@ -62,7 +64,7 @@ only as long as needed (maximum seven days); promote only sanitised, minimised
 system-message examples to parser fixtures. Ordinary-kill victim pairs must not
 become durable match records.
 
-For each reviewed fixture record: English/Solo, mod/build version, whether it was
+For each reviewed fixture record: language and mode, mod/build version, whether it was
 captured from spawn, missing sections, actual expected facts and evidence limits.
 Write a capture findings report before implementing the production parser.
 

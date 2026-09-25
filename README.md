@@ -26,13 +26,23 @@ Installation into your existing game directory is deliberately manual.
 
 ## First live experiment
 
-1. Launch your authenticated Forge 1.8.9 instance and join Solo Bed Wars in English.
-2. Run `/bwcapture start` before the countdown. This captures selected message
+1. Launch your authenticated Forge 1.8.9 instance and join Solo, Doubles or
+   3v3v3v3 Bed Wars in English.
+2. Run `/bwcapture start solo`, `/bwcapture start doubles`, or
+   `/bwcapture start 3v3v3v3` before the countdown. `duos` is an alias for
+   `doubles`; `3s` and `threes` are aliases for `3v3v3v3`. Plain
+   `/bwcapture start` still works with an unspecified mode. This captures selected message
    candidates and Bed Wars sidebar changes; it does not sample the player roster.
 3. Once physically on your island, run `/bwcapture islands` to enable roster snapshots.
 4. Play normally. `/bwcapture mark bed` (also `kill`, `final`, `spectating`, `rejoin`,
    `spawn`, `end`) adds an optional fixed label to help compare observations.
 5. After the result screen, run `/bwcapture stop`, then `/bwcapture status`.
+
+Modes are manually labelled, not detected or validated. Roster capture records
+each tab-list profile with its raw team metadata, including multiple teammates.
+Stop and start a separate capture for each match. You can start mid-match, but
+the log will be missing earlier events. After installing a rebuilt JAR, restart
+Minecraft; replace the previous JAR rather than keeping two copies of the mod.
 
 Files: `<game directory>/bedwars-companion/captures/capture-<id>.jsonl`.
 `/bwcapture pause` disables roster sampling. Each capture is limited to 30 minutes
