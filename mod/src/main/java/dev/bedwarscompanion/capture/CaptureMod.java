@@ -14,7 +14,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
-import java.nio.file.Path;
 import java.util.*;
 
 @Mod(modid = "bedwarscapture", name = "Bed Wars Capture (Diagnostic)", version = "0.1.0-diagnostic",
@@ -29,6 +28,12 @@ public class CaptureMod {
     private int ticks;
     private long rejectedChat;
     private String captureMode = "unspecified";
+    private boolean autoEnabled;
+    private boolean autoCapture;
+    private boolean autoRoster;
+    private boolean rosterPaused;
+    private boolean closing;
+    private final AutoCapture automation = new AutoCapture();
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
@@ -41,7 +46,9 @@ public class CaptureMod {
     }
     @SubscribeEvent
     public void tick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || ++ticks % 20 != 0 || writer == null) return;
+        if (event.phase != TickEvent.Phase.END || ++ticks % 20 != 0) return;
+        if (autoEnabled) automate();
+        if (writer == null) return;
         if (!writer.accepting()) {
             if (!writer.status().equals(lastWarning)) {
                 lastWarning = writer.status();
@@ -62,11 +69,12 @@ public class CaptureMod {
     public void worldUnloaded(WorldEvent.Unload event) {
         if (!event.world.isRemote || writer == null || !writer.accepting()) return;
         islands = false;
+        autoRoster = false;
         previousSnapshot = null;
         writer.emit("roster_gate_closed", map("reason", "world-unloaded"));
+        if (autoCapture) stopCapture("world-unloaded");
     }
-    private void snapshot() {
-        Scoreboard board = mc.theWorld.getScoreboard();
+    private ScoreObjective sidebar(Scoreboard board) {
         ScoreObjective objective = board.getObjectiveInDisplaySlot(1);
         // Team-coloured sidebar slots override the global sidebar on some servers.
         if (mc.thePlayer != null) {
@@ -76,6 +84,79 @@ public class CaptureMod {
                 if (coloured != null) objective = coloured;
             }
         }
+        return objective;
+    }
+    private List<String> sidebarLines(Scoreboard board, ScoreObjective objective) {
+        List<String> lines = new ArrayList<>();
+        if (objective == null) return lines;
+        for (Score score : board.getSortedScores(objective)) {
+            String name = score.getPlayerName();
+            if (name == null || name.startsWith("#")) continue;
+            lines.add(clip(ScorePlayerTeam.formatPlayerName(board.getPlayersTeam(name), name)));
+            if (lines.size() == 32) break;
+        }
+        return lines;
+    }
+    private void beginCapture(boolean automatic, String evidence) {
+        writer = new DiagnosticWriter(mc.mcDataDir.toPath().resolve("bedwars-companion/captures"));
+        Map<String, Object> modeMarker = map("label", "mode-selected");
+        modeMarker.put("manually_selected_mode", captureMode);
+        writer.emit("manual_marker", modeMarker);
+        autoCapture = automatic; autoRoster = false; rosterPaused = false; closing = false;
+        automation.reset();
+        islands = false; connected = mc.theWorld != null && mc.getNetHandler() != null;
+        previousSnapshot = null; lastWarning = ""; rejectedChat = 0;
+        if (automatic) {
+            Map<String, Object> marker = map("label", "auto-start");
+            marker.put("evidence", evidence);
+            marker.put("lifecycle_status", "experimental-unverified");
+            writer.emit("automation_marker", marker);
+            tell("Automatic diagnostic capture started (" + evidence + ").");
+        }
+    }
+    private void stopCapture(String reason) {
+        if (writer == null || !writer.accepting()) return;
+        if (autoCapture) writer.emit("automation_marker", map("label", "auto-stop-" + reason));
+        writer.emit("diagnostic_counts", map("rejected_chat", rejectedChat));
+        writer.stop(); closing = true; islands = false; autoRoster = false;
+        automation.reset();
+        tell("Finishing diagnostic capture. " + writer.file());
+    }
+    private void automate() {
+        // Do not continually retry after storage failure, queue/file/time limits.
+        if (writer != null && !writer.accepting() && (!closing || writer.status().startsWith("failed-"))) {
+            autoEnabled = false;
+            tell("Auto capture disabled: " + writer.status() + ". Check /bwcapture status.");
+            return;
+        }
+        AutoCapture.Scene scene = AutoCapture.Scene.OTHER;
+        if (mc.theWorld != null && mc.getNetHandler() != null) {
+            Scoreboard board = mc.theWorld.getScoreboard();
+            ScoreObjective objective = sidebar(board);
+            scene = AutoCapture.scene(objective == null ? "" : objective.getDisplayName(), sidebarLines(board, objective));
+        }
+        if (writer == null || writer.finished()) {
+            if (scene == AutoCapture.Scene.OTHER) return;
+            beginCapture(true, scene == AutoCapture.Scene.PREGAME ? "pregame-sidebar" : "active-sidebar-partial-start");
+        }
+        if (!writer.accepting() || !autoCapture) return;
+        automation.observe(scene);
+        if (automation.shouldStop(scene)) {
+            stopCapture(scene == AutoCapture.Scene.PREGAME ? "next-pregame" : "sidebar-lost");
+            return;
+        }
+        boolean ready = automation.rosterReady() && !rosterPaused;
+        if (ready != autoRoster) {
+            autoRoster = ready;
+            previousSnapshot = null;
+            writer.emit("automation_marker", map("label", ready ? "auto-roster-enabled" : "auto-roster-paused"));
+        }
+        // Never carry a manual override into a detected lobby/pregame in auto mode.
+        if (scene != AutoCapture.Scene.ACTIVE) islands = false;
+    }
+    private void snapshot() {
+        Scoreboard board = mc.theWorld.getScoreboard();
+        ScoreObjective objective = sidebar(board);
         if (objective == null || !MessageFilter.plain(objective.getDisplayName()).contains("BED WARS")) {
             if (islands) {
                 islands = false;
@@ -86,16 +167,11 @@ public class CaptureMod {
         }
         Map<String, Object> data = map("sidebar_title", clip(objective.getDisplayName()));
         data.put("manually_selected_mode", captureMode);
-        List<String> lines = new ArrayList<>();
-        for (Score score : board.getSortedScores(objective)) {
-            String name = score.getPlayerName();
-            if (name == null || name.startsWith("#")) continue;
-            lines.add(clip(ScorePlayerTeam.formatPlayerName(board.getPlayersTeam(name), name)));
-            if (lines.size() == 32) break;
-        }
+        List<String> lines = sidebarLines(board, objective);
         data.put("sidebar_lines", lines);
         data.put("islands_manually_confirmed", islands);
-        if (islands) {
+        data.put("roster_capture_basis", islands ? "manual-islands" : autoRoster ? "experimental-active-sidebar" : "disabled");
+        if (islands || autoRoster) {
             List<Map<String, Object>> roster = new ArrayList<>();
             for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
                 if (roster.size() >= 100) break;
@@ -150,13 +226,21 @@ public class CaptureMod {
     private class CaptureCommand extends CommandBase {
         @Override public String getCommandName() { return "bwcapture"; }
         @Override public String getCommandUsage(ICommandSender sender) {
-            return "/bwcapture start [solo|doubles|3v3v3v3] | islands | pause | status | stop | mark <spawn|bed|kill|final|spectating|rejoin|end>";
+            return "/bwcapture auto [solo|doubles|3v3v3v3|off] | start [solo|doubles|3v3v3v3] | islands | pause | status | stop | mark <spawn|bed|kill|final|spectating|rejoin|end>";
         }
         @Override public int getRequiredPermissionLevel() { return 0; }
         @Override public boolean canCommandSenderUseCommand(ICommandSender sender) { return true; }
         @Override public void processCommand(ICommandSender sender, String[] args) {
             if (args.length == 0) { tell(getCommandUsage(sender)); return; }
             switch (args[0]) {
+                case "auto":
+                    if (args.length == 2 && args[1].equalsIgnoreCase("off")) {
+                        autoEnabled = false;
+                        if (autoCapture) stopCapture("disabled");
+                        tell("Auto capture disabled.");
+                        return;
+                    }
+                    // Same mode validation as manual start; arm without recording the lobby.
                 case "start":
                     if (writer != null && !writer.finished()) { tell("A capture is active or draining. " + writer.status()); return; }
                     String mode = args.length == 1 ? "unspecified" : args[1].toLowerCase(Locale.ROOT);
@@ -166,34 +250,34 @@ public class CaptureMod {
                         tell(getCommandUsage(sender)); return;
                     }
                     captureMode = mode;
-                    Path path = mc.mcDataDir.toPath().resolve("bedwars-companion/captures");
-                    writer = new DiagnosticWriter(path);
-                    Map<String, Object> modeMarker = map("label", "mode-selected");
-                    modeMarker.put("manually_selected_mode", captureMode);
-                    writer.emit("manual_marker", modeMarker);
-                    islands = false; connected = mc.theWorld != null; previousSnapshot = null; lastWarning = ""; rejectedChat = 0;
-                    tell("Diagnostic capture started (mode=" + captureMode + "). On your island, run /bwcapture islands. No account lookups.");
+                    autoEnabled = args[0].equals("auto");
+                    closing = true; // A previously completed manual capture is not a failure.
+                    if (autoEnabled) {
+                        tell("Auto capture armed (mode=" + captureMode + "). Play normally; /bwcapture stop disables it. Experimental match detection.");
+                    } else {
+                        beginCapture(false, "manual");
+                        tell("Diagnostic capture started (mode=" + captureMode + "). On your island, run /bwcapture islands.");
+                    }
                     break;
                 case "islands":
                     if (!active()) return;
-                    islands = true; previousSnapshot = null;
+                    islands = true; rosterPaused = false; previousSnapshot = null;
                     writer.emit("manual_marker", map("label", "islands"));
                     tell("Roster capture enabled by your island confirmation.");
                     break;
                 case "pause":
                     if (!active()) return;
-                    islands = false; previousSnapshot = null;
+                    islands = false; autoRoster = false; rosterPaused = true; previousSnapshot = null;
                     writer.emit("manual_marker", map("label", "roster-paused"));
                     tell("Roster capture paused; system candidates and sidebar capture continue.");
                     break;
                 case "stop":
-                    if (!active()) return;
-                    writer.emit("diagnostic_counts", map("rejected_chat", rejectedChat));
-                    writer.stop(); islands = false;
-                    tell("Stopping asynchronously. " + writer.file());
+                    autoEnabled = false;
+                    stopCapture("manual-stop");
+                    tell("Auto capture disabled.");
                     break;
                 case "status":
-                    tell(writer == null ? "Capture off." : writer.status() + "; mode=" + captureMode + "; roster=" + islands + "; " + writer.file());
+                    tell("auto=" + autoEnabled + "; mode=" + captureMode + "; " + (writer == null ? "Capture off." : writer.status() + "; roster=" + (islands || autoRoster) + "; " + writer.file()));
                     break;
                 case "mark":
                     if (!active()) return;

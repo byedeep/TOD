@@ -26,6 +26,64 @@ Installation into your existing game directory is deliberately manual.
 
 ## First live experiment
 
+### Automatic test capture (experimental)
+
+After installing the updated JAR and restarting Minecraft, run
+`/bwcapture auto 3s` once before queueing. Use `solo` or `doubles` for those
+modes; the label is supplied by you, not detected. Play normally across games.
+`/bwcapture stop` (or `/bwcapture auto off`) stops recording and disarms automation.
+Automation is off again after restarting Minecraft. To change modes, stop and
+arm again with the new label.
+
+The recorder starts on a recognised pregame sidebar (player count plus waiting
+or countdown), or starts a **partial** capture if an active sidebar is already
+visible. Two consecutive active-sidebar samples enable roster capture without
+`islands`. The log distinguishes this experimental gate from manual confirmation.
+`pause` suspends roster sampling for the current capture; `islands` resumes it.
+Spectating does not stop capture. World unload, a return to pregame after active
+play, or five consecutive unrecognised sidebar samples closes the file. The next
+recognised game context starts a separate file. Disconnect/rejoin therefore
+produces separate diagnostic segments, not confirmed separate matches.
+
+Detection samples once per second and may miss initial messages or unfamiliar
+sidebar layouts. The lobby title alone does not trigger recording. Existing size,
+time and retention limits still apply; a storage failure or limit disables auto
+capture until explicitly armed again. **Automatic detection still needs a live
+playthrough.** These are diagnostic boundaries, not production match detection.
+
+For automatic reports in a terminal, from this project run:
+
+```sh
+./scripts/watch-captures.sh
+```
+
+This watches the `TOD-Bed-Wars` Prism instance and prints a report when each
+capture finishes. Pass another captures directory as its first argument if needed.
+Ctrl+C stops the watcher; it does not stop Minecraft capture. No reports are saved
+to disk automatically. To review existing files, including interrupted captures:
+
+```sh
+python3 scripts/capture_tool.py review /path/to/captures
+```
+
+Reports show writer health, candidate counts and sequence references, missing
+examples, and checks still requiring your observation. A missing example does
+not prove an event never happened, and a clean file does not prove full coverage.
+Unfamiliar `<player> was <wording> by <player>.` cosmetics are retained for
+diagnostic review. `cosmetic_fallback_evidence` reports sequence references,
+final markers and whether both names were sampled earlier in the capture;
+it does not add ordinary kills or expose the extracted names. A roster match
+does not verify attribution. Other unknown sentence structures may still be missed.
+`uncredited_void_deaths` counts observed `<player> fell into the void.` messages
+across all players in each capture, with a total and separate non-final/final
+counts. Credited knockbacks and `slipped into void for <killer>` are excluded.
+An uncredited final void death awards nobody a kill; it also appears in the
+report's final-message evidence. Uncredited means no killer was named, not proof
+that the death was the player's fault.
+Watch mode waits for a footer; use one-shot review after a crash or forced exit.
+
+### Manual capture
+
 1. Launch your authenticated Forge 1.8.9 instance and join Solo, Doubles or
    3v3v3v3 Bed Wars in English.
 2. Run `/bwcapture start solo`, `/bwcapture start doubles`, or

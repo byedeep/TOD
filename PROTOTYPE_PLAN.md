@@ -61,6 +61,10 @@ No concealed-identity recovery or API polling for match counters.
 
 - Hidden pregame players trigger no account lookups; early events survive roster loading.
 - Final kills never count as regular kills; unattributed deaths/beds award no actor.
+- Track uncredited void deaths separately per participant in the recording core,
+  with non-final/final breakdowns and session totals. Base this on observed
+  uncredited void messages, never inferred blame; award no killer. The diagnostic
+  report currently exposes capture-wide counts across all observed players.
 - Regular kills retain actor-only counts, not durable victim relationships.
 - Retry IDs are idempotent; distinct identical-text events remain distinct.
 - Partial capture, reconnects and queue loss preserve coverage gaps.

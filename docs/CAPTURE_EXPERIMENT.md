@@ -4,9 +4,11 @@
 
 Determine what Forge 1.8.9 exposes during real matches. This is not a replay mod
 or a production event parser. A selected message is **not** a verified event.
-No live captures or validated Hypixel templates are bundled yet.
+No live captures or validated Hypixel templates are bundled yet. The first local
+late-game sample has been reviewed; see `VALIDATION.md` for evidence and limits.
 
-The mod samples Bed Wars sidebar changes and, after manual island confirmation,
+The mod samples Bed Wars sidebar changes and, after manual island confirmation
+or an explicitly enabled experimental active-sidebar gate,
 tab-list profiles and scoreboard team metadata once per second. It retains
 supplied UUID separately in each participant sample; all identities are unresolved.
 No UUID is confirmed, resolved by username, or looked up through an API.
@@ -22,13 +24,17 @@ and extend selection using reviewed examples, without enabling whole-chat loggin
 ## Runbook
 
 Use the mode-labelled start commands in the README. Capture the modes you are
-playing; track evidence separately for Solo, Doubles and 3v3v3v3. Aim for at
-least three matches per mode before drawing coverage conclusions, stopping
-between games. Include a game spectated after elimination and a disconnect/rejoin
+playing; track evidence separately for Solo, Doubles and 3v3v3v3. The next useful
+checkpoint is one full match with spawn, a bed break and an ordinary credited
+kill. Broaden to multiple matches and modes as needed to resolve missing cases;
+three matches per mode is not a prerequisite for beginning supported downstream work.
+Include a game spectated after elimination and a disconnect/rejoin
 when practical. Do not disrupt other players just to manufacture an event.
 After reconnect or loss of the Bed Wars sidebar, confirm islands again. Use
 `pause` before changing games if the sidebar persists between transitions.
-Start/stop/islands/markers are manual controls, not validated lifecycle detection.
+Alternatively use `/bwcapture auto <mode>` and the report watcher described in the
+README. Automatic boundaries and roster gates are experimental, not validated
+lifecycle detection. Reconnect segments are not automatically merged.
 
 For each case below, add an evidence reference with capture ID, sample sequence,
 and manually observed outcome. Never replace “pending” with “verified” solely
