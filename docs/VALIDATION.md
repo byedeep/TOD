@@ -1,5 +1,27 @@
 # TOD — validation status — 2026-09-26
 
+## September 27 roster preview implementation
+
+Added the explicitly requested local communication and Discord roster slice.
+See [Discord roster setup and scope](DISCORD_ROSTER.md) for configuration,
+protocol, storage/retry behavior and validation limits. This does not complete
+the full step 3 contract or step 6 Discord feature set. Live Discord publishing
+and the updated mod's roster behavior remain to be exercised with the user's bot.
+
+Team-only metadata reviewed from local capture
+`2c861003-01c8-4025-8ac7-c0e405008d50` shows `Red0` with a Yellow `Y` prefix,
+`Blue12` with both plain gray and explicit Blue prefixes, and a default White
+format across multiple teams. Registered names and default format are therefore
+not reliable team evidence. The preview requires a matching colored team-letter
+prefix and keeps plain gray/unassigned profiles pending. Minimized team-only
+examples are covered by Java regression tests; no player names were copied.
+
+Verification passed: rebuilt/reobfuscated diagnostic JAR; 15 Java tests;
+9 Go tests, including local HTTP/Discord simulation, state recovery and instance
+locking; Go race detection and vet; 8 Python diagnostic regression tests.
+The companion binary reports `0.2.0-roster-preview`. No real Discord message
+was sent during these checks, and the game instance's installed JAR was not changed.
+
 ## Step 1: build foundation
 
 - **Passed:** checksum-verified, project-local Temurin Java 8u504-b01 and Gradle
@@ -100,8 +122,8 @@ Hypixel message formats, identity confirmation, complete ordinary-kill visibilit
 spectator/reconnect semantics, or live performance. Diagnostic selection is
 conservative and can miss cosmetic variants. No production event parser exists.
 
-Next action: restart with the rebuilt JAR, enable `/bwcapture auto <mode>`, and
-compare retained kill messages with the local sidebar in one targeted game.
+Next action: restart with the rebuilt JAR; automatic capture is armed at client
+startup. Compare retained kill messages with the local sidebar in one targeted game.
 Complete the evidence table in `CAPTURE_EXPERIMENT.md` before
 calling step 2 complete or building downstream event logic on assumptions.
 

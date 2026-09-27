@@ -32,8 +32,9 @@ Include a game spectated after elimination and a disconnect/rejoin
 when practical. Do not disrupt other players just to manufacture an event.
 After reconnect or loss of the Bed Wars sidebar, confirm islands again. Use
 `pause` before changing games if the sidebar persists between transitions.
-Alternatively use `/bwcapture auto <mode>` and the report watcher described in the
-README. Automatic boundaries and roster gates are experimental, not validated
+Automatic capture is armed at client startup; use the report watcher described in
+the README. `/bwcapture auto <mode>` is optional and only supplies a manual mode
+label. Automatic boundaries and roster gates are experimental, not validated
 lifecycle detection. Reconnect segments are not automatically merged.
 
 For each case below, add an evidence reference with capture ID, sample sequence,

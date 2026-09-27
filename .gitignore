@@ -8,3 +8,8 @@ bin/
 .env
 captures/
 __pycache__/
+discord.json
+bridge.json
+local-token
+rosters.json
+roster-outbox.json

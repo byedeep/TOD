@@ -1,8 +1,10 @@
 # TOD — diagnostic prototype
 
-Current work: steps 1–2 of [the prototype plan](PROTOTYPE_PLAN.md).
+Current work: diagnostic capture plus a roster-only local/Discord preview from
+[the prototype plan](PROTOTYPE_PLAN.md).
 This logs selected match signals, **not video or world replays**. The diagnostic
-mod makes no account/API requests and does not connect to Discord.
+mod makes no account/API requests. An optional local Go companion can now publish
+visible names and team colors to Discord. See [Discord roster setup](docs/DISCORD_ROSTER.md).
 
 ## Build on Linux x86_64
 
@@ -17,7 +19,8 @@ Bootstrap downloads checksum-verified Temurin Java 8u504-b01 and Gradle 2.14.1
 under ignored `.tools/`; it does not change system Java. The Gradle helper uses
 that local JDK/cache. Forge is pinned to 1.8.9-11.15.1.2318-1.8.9, MCP stable_22,
 ForgeGradle 2.1-20211118.174922-42. First setup downloads Minecraft/Forge libraries.
-The Go CLI currently supports only `version` and `doctor` (no background service).
+The Go CLI supports `version`, `doctor`, and the foreground `serve` roster service.
+It does not start automatically with Minecraft.
 
 Artifact: `mod/build/libs/bedwars-capture-0.1.0-diagnostic.jar`.
 Install it in the **mods directory of your standalone Forge 1.8.9 instance**,
@@ -28,12 +31,13 @@ Installation into your existing game directory is deliberately manual.
 
 ### Automatic test capture (experimental)
 
-After installing the updated JAR and restarting Minecraft, run
-`/bwcapture auto 3s` once before queueing. Use `solo` or `doubles` for those
-modes; the label is supplied by you, not detected. Play normally across games.
-`/bwcapture stop` (or `/bwcapture auto off`) stops recording and disarms automation.
-Automation is off again after restarting Minecraft. To change modes, stop and
-arm again with the new label.
+After installing the updated JAR and restarting Minecraft, automatic capture is
+already armed. Queue and play normally; no capture command is required. The
+automatic mode label is `unspecified` because the game mode is not yet detected.
+You may optionally run `/bwcapture auto 3s`, `solo`, or `doubles` before queueing
+to add a manual mode label. `/bwcapture stop` (or `/bwcapture auto off`) stops
+recording and disarms automation for the rest of the current client run; the next
+Minecraft restart arms it again.
 
 The recorder starts on a recognised pregame sidebar (player count plus waiting
 or countdown), or starts a **partial** capture if an active sidebar is already

@@ -28,25 +28,33 @@ public class CaptureMod {
     private int ticks;
     private long rejectedChat;
     private String captureMode = "unspecified";
-    private boolean autoEnabled;
+    // Arm experimental sidebar detection for every client run. It still waits for
+    // recognised Bed Wars pregame/active context before creating a capture.
+    private boolean autoEnabled = true;
     private boolean autoCapture;
     private boolean autoRoster;
     private boolean rosterPaused;
     private boolean closing;
     private final AutoCapture automation = new AutoCapture();
+    private RosterTransport transport;
+    private RosterRelay relay;
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
+        transport = new RosterTransport(mc.mcDataDir.toPath().resolve("bedwars-companion"));
+        relay = new RosterRelay(transport::offer);
         MinecraftForge.EVENT_BUS.register(this);
         ClientCommandHandler.instance.registerCommand(new CaptureCommand());
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             DiagnosticWriter active = writer;
             if (active != null) active.shutdown();
+            transport.shutdown();
         }, "bedwars-capture-shutdown"));
     }
     @SubscribeEvent
     public void tick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END || ++ticks % 20 != 0) return;
+        sampleDiscordRoster();
         if (autoEnabled) automate();
         if (writer == null) return;
         if (!writer.accepting()) {
@@ -67,12 +75,35 @@ public class CaptureMod {
     }
     @SubscribeEvent
     public void worldUnloaded(WorldEvent.Unload event) {
+        if (event.world.isRemote && relay != null) relay.end();
         if (!event.world.isRemote || writer == null || !writer.accepting()) return;
         islands = false;
         autoRoster = false;
         previousSnapshot = null;
         writer.emit("roster_gate_closed", map("reason", "world-unloaded"));
         if (autoCapture) stopCapture("world-unloaded");
+    }
+    private void sampleDiscordRoster() {
+        if (mc.theWorld == null || mc.getNetHandler() == null) { relay.end(); return; }
+        Scoreboard board = mc.theWorld.getScoreboard();
+        ScoreObjective objective = sidebar(board);
+        AutoCapture.Scene scene = AutoCapture.scene(objective == null ? "" : objective.getDisplayName(), sidebarLines(board, objective));
+        List<RosterRelay.Player> players = new ArrayList<>();
+        if (scene == AutoCapture.Scene.ACTIVE) {
+            Set<String> seen = new HashSet<>();
+            for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
+                String name = info.getGameProfile().getName();
+                if (name == null || !name.matches("[A-Za-z0-9_]{1,16}") || !seen.add(name.toLowerCase(Locale.ROOT))) continue;
+                // Explicit spectators are not active team members. Dead-player retention
+                // varies by server; no full initial-lineup claim is made by this preview.
+                if (info.getGameType() == net.minecraft.world.WorldSettings.GameType.SPECTATOR) continue;
+                ScorePlayerTeam team = board.getPlayersTeam(name);
+                String color = team == null ? "pending" : RosterRelay.team(team.getRegisteredName(), team.getColorPrefix(), team.getChatFormat().toString());
+                players.add(new RosterRelay.Player(name, color));
+                if (players.size() >= 100) break;
+            }
+        }
+        relay.sample(scene, players);
     }
     private ScoreObjective sidebar(Scoreboard board) {
         ScoreObjective objective = board.getObjectiveInDisplaySlot(1);
@@ -235,6 +266,7 @@ public class CaptureMod {
             switch (args[0]) {
                 case "auto":
                     if (args.length == 2 && args[1].equalsIgnoreCase("off")) {
+                        relay.enabled(false);
                         autoEnabled = false;
                         if (autoCapture) stopCapture("disabled");
                         tell("Auto capture disabled.");
@@ -250,6 +282,7 @@ public class CaptureMod {
                         tell(getCommandUsage(sender)); return;
                     }
                     captureMode = mode;
+                    relay.enabled(true);
                     autoEnabled = args[0].equals("auto");
                     closing = true; // A previously completed manual capture is not a failure.
                     if (autoEnabled) {
@@ -261,22 +294,26 @@ public class CaptureMod {
                     break;
                 case "islands":
                     if (!active()) return;
+                    relay.enabled(true);
                     islands = true; rosterPaused = false; previousSnapshot = null;
                     writer.emit("manual_marker", map("label", "islands"));
                     tell("Roster capture enabled by your island confirmation.");
                     break;
                 case "pause":
                     if (!active()) return;
+                    relay.enabled(false);
                     islands = false; autoRoster = false; rosterPaused = true; previousSnapshot = null;
                     writer.emit("manual_marker", map("label", "roster-paused"));
                     tell("Roster capture paused; system candidates and sidebar capture continue.");
                     break;
                 case "stop":
+                    relay.enabled(false);
                     autoEnabled = false;
                     stopCapture("manual-stop");
                     tell("Auto capture disabled.");
                     break;
                 case "status":
+                    tell(transport.status());
                     tell("auto=" + autoEnabled + "; mode=" + captureMode + "; " + (writer == null ? "Capture off." : writer.status() + "; roster=" + (islands || autoRoster) + "; " + writer.file()));
                     break;
                 case "mark":

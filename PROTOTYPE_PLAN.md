@@ -46,9 +46,12 @@ configures Discord/Hypixel credentials locally when integrations are reached.
 
 ## Boundaries and defaults
 
-Work currently authorised for implementation: steps 1 and 2 only. A minimal Go
-CLI is scaffolding, not the step 3 service. No SQLite ingestion, Discord, public
-API calls, identity confirmation claims or production parsers in this stage.
+Work authorised for implementation: steps 1 and 2 plus the user-requested
+roster-only slice of steps 3 and 6: local authenticated snapshot delivery and
+Discord names/team colors. See `docs/DISCORD_ROSTER.md`. This slice uses a bounded
+JSON snapshot store and is not the full observation/event recording contract.
+No SQLite match ingestion, account API calls, identity confirmation claims or
+production event parsers are implemented in this stage.
 Steps 1–2 remain pending wherever real client/live match evidence is missing.
 
 Later defaults: Asia/Kolkata display timezone, UTC storage, no idle expiry or
