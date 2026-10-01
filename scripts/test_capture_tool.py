@@ -1,5 +1,5 @@
 import unittest
-from capture_tool import sanitise, summary, review, review_path, cosmetic_by_candidate
+from capture_tool import sanitise, summary, review, review_path, cosmetic_by_candidate, read_capture
 import contextlib
 import io
 import json
@@ -7,6 +7,26 @@ from pathlib import Path
 import tempfile
 
 class CaptureToolTest(unittest.TestCase):
+    def test_tracker_records_remain_readable_and_redact_names_without_a_roster(self):
+        rows = [
+            {"type": "tracker_event", "payload": {"actor": "ExampleActor", "subject": "ExampleVictim"}},
+            {"type": "snapshot", "payload": {"tracking": {"players": {"exampleactor": {"regular_kills": 2}}}}},
+            {"type": "tracker_snapshot", "payload": {"players": {"examplevictim": {"final_deaths": 1}}}},
+            {"type": "message_candidate", "payload": {"formatted_text": "§aExampleVictim §7was killed by §cEXAMPLEACTOR§7."}},
+        ]
+        for row in rows:
+            row["schema_version"] = 1
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture-test.jsonl"
+            path.write_text("\n".join(json.dumps(row) for row in rows))
+            self.assertEqual(read_capture(path), rows)
+        clean = sanitise(rows)
+        self.assertNotIn("exampleactor", json.dumps(clean).lower())
+        self.assertNotIn("examplevictim", json.dumps(clean).lower())
+        actor = clean[0]["payload"]["actor"]
+        self.assertIn(actor, clean[1]["payload"]["tracking"]["players"])
+        self.assertIn("regular_kills", clean[1]["payload"]["tracking"]["players"][actor])
+
     def test_uncredited_void_counter_excludes_credited_kills_and_chat(self):
         texts = [
             "§aPlayerA §7fell into the void.",

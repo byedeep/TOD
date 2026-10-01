@@ -1,5 +1,26 @@
 # TOD — validation status — 2026-09-26
 
+## October 1 adapted BedWar tracking
+
+At the user's request, ported BedWar `10b2499` event/session logic to Java and
+bundled BedWar-Repo `db04154` patterns. Added `/bwcapture stats [player]`,
+segment/client-run observed counters, absolute local tab totals, diagnostic
+structured records and sanitisation support. Upstream licence notices and GPL,
+LGPL and MIT texts are included in the artifact. See `BEDWAR_TRACKING.md` for
+scope and `../THIRD_PARTY_NOTICES.md` for provenance.
+
+Verification: offline Forge test/build and reobfuscation passed; 25 Java tests
+and 9 Python tests passed. New tests specifically exercise cosmetics, final/void
+separation, spoof rejection, actor-only regular-kill output, repeated-message
+counts, segment resets with retained client totals, footer values and redaction.
+The unchanged Go roster service was not retested for this adaptation.
+
+Not yet verified: the adapted code in an authenticated live game, current
+upstream-pattern coverage, and footer reflection in the installed client. No
+installed game JAR was replaced and no Discord message was sent. Client-run
+counters are in memory; durable session recovery and full match recording remain
+pending. Earlier claims below about no parser refer to the September baseline.
+
 ## September 27 roster preview implementation
 
 Added the explicitly requested local communication and Discord roster slice.

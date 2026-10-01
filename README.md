@@ -1,6 +1,6 @@
 # TOD — diagnostic prototype
 
-Current work: diagnostic capture plus a roster-only local/Discord preview from
+Current work: diagnostic capture, adapted BedWar event/session tracking, and a roster-only local/Discord preview from
 [the prototype plan](PROTOTYPE_PLAN.md).
 This logs selected match signals, **not video or world replays**. The diagnostic
 mod makes no account/API requests. An optional local Go companion can now publish
@@ -21,6 +21,28 @@ that local JDK/cache. Forge is pinned to 1.8.9-11.15.1.2318-1.8.9, MCP stable_22
 ForgeGradle 2.1-20211118.174922-42. First setup downloads Minecraft/Forge libraries.
 The Go CLI supports `version`, `doctor`, and the foreground `serve` roster service.
 It does not start automatically with Minecraft.
+
+## Adapted BedWar tracking
+
+The mod now includes a Java adaptation of BedWar Mod's event dispatch, session
+counters and tab-footer totals, with its Hypixel message patterns bundled locally.
+See [source provenance and licences](THIRD_PARTY_NOTICES.md) and
+[tracking scope](docs/BEDWAR_TRACKING.md).
+
+With capture running on `hypixel.net` or a subdomain, use:
+
+```text
+/bwcapture stats
+/bwcapture stats PlayerName
+```
+
+This shows observed kills, finals and beds for the current/last capture segment
+and the current Minecraft client session. Your own command also shows the latest
+available tab-footer totals separately. Session counts survive new captures and
+disconnects in the same client run; restarting Minecraft clears them. Diagnostic
+files retain segment evidence under the existing retention limits. These are
+preview counters, not the planned persistent match/session database. Discord
+still publishes only rosters. Live validation of this adaptation is pending.
 
 Artifact: `mod/build/libs/bedwars-capture-0.1.0-diagnostic.jar`.
 Install it in the **mods directory of your standalone Forge 1.8.9 instance**,

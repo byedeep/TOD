@@ -15,6 +15,8 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import java.util.*;
+import dev.bedwarscompanion.capture.bedwar.BedwarParser;
+import dev.bedwarscompanion.capture.bedwar.BedwarTracker;
 
 @Mod(modid = "bedwarscapture", name = "Bed Wars Capture (Diagnostic)", version = "0.1.0-diagnostic",
      clientSideOnly = true, acceptedMinecraftVersions = "[1.8.9]", acceptableRemoteVersions = "*")
@@ -38,6 +40,9 @@ public class CaptureMod {
     private final AutoCapture automation = new AutoCapture();
     private RosterTransport transport;
     private RosterRelay relay;
+    private final BedwarParser eventParser = new BedwarParser();
+    private final BedwarTracker tracker = new BedwarTracker();
+    private final TabFooterReader tabFooter = new TabFooterReader();
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
@@ -75,6 +80,7 @@ public class CaptureMod {
     }
     @SubscribeEvent
     public void worldUnloaded(WorldEvent.Unload event) {
+        if (event.world.isRemote) tracker.end();
         if (event.world.isRemote && relay != null) relay.end();
         if (!event.world.isRemote || writer == null || !writer.accepting()) return;
         islands = false;
@@ -129,6 +135,7 @@ public class CaptureMod {
         return lines;
     }
     private void beginCapture(boolean automatic, String evidence) {
+        tracker.newCapture();
         writer = new DiagnosticWriter(mc.mcDataDir.toPath().resolve("bedwars-companion/captures"));
         Map<String, Object> modeMarker = map("label", "mode-selected");
         modeMarker.put("manually_selected_mode", captureMode);
@@ -147,6 +154,8 @@ public class CaptureMod {
     }
     private void stopCapture(String reason) {
         if (writer == null || !writer.accepting()) return;
+        tracker.end();
+        writer.emit("tracker_snapshot", tracker.snapshot());
         if (autoCapture) writer.emit("automation_marker", map("label", "auto-stop-" + reason));
         writer.emit("diagnostic_counts", map("rejected_chat", rejectedChat));
         writer.stop(); closing = true; islands = false; autoRoster = false;
@@ -200,6 +209,11 @@ public class CaptureMod {
         data.put("manually_selected_mode", captureMode);
         List<String> lines = sidebarLines(board, objective);
         data.put("sidebar_lines", lines);
+        if (onHypixel() && AutoCapture.scene(objective.getDisplayName(), lines) == AutoCapture.Scene.ACTIVE) {
+            tracker.activeSidebar(ownTeam(board));
+            tracker.footer(tabFooter.read(mc.ingameGUI.getTabList()));
+        }
+        data.put("tracking", tracker.snapshot());
         data.put("islands_manually_confirmed", islands);
         data.put("roster_capture_basis", islands ? "manual-islands" : autoRoster ? "experimental-active-sidebar" : "disabled");
         if (islands || autoRoster) {
@@ -233,12 +247,37 @@ public class CaptureMod {
         if (writer == null || !writer.accepting() || event.type == 2) return;
         // Packet type 0 is not proof of system origin on legacy servers.
         String text = event.message.getFormattedText();
-        if (MessageFilter.candidate(text) && !hasInteractiveChat(event.message)) {
+        if (hasInteractiveChat(event.message)) { rejectedChat++; return; }
+        BedwarParser.Event parsed = null;
+        if (onHypixel() && mc.theWorld != null) {
+            Scoreboard board = mc.theWorld.getScoreboard();
+            ScoreObjective objective = sidebar(board);
+            boolean area = objective != null && AutoCapture.clean(objective.getDisplayName()).equals("BED WARS");
+            AutoCapture.Scene scene = area ? AutoCapture.scene(objective.getDisplayName(), sidebarLines(board, objective)) : AutoCapture.Scene.OTHER;
+            if (scene == AutoCapture.Scene.ACTIVE)
+                tracker.activeSidebar(ownTeam(board));
+            parsed = eventParser.parse(text, area, tracker.active() && scene != AutoCapture.Scene.PREGAME, tracker.ownTeam());
+            Map<String, Object> observation = tracker.accept(parsed);
+            if (observation != null) writer.emit("tracker_event", observation);
+        }
+        if (MessageFilter.candidate(text) || parsed != null) {
             Map<String, Object> payload = map("formatted_text", text);
             payload.put("packet_type", event.type);
             payload.put("classification", "unvalidated-system-candidate");
             writer.emit("message_candidate", payload);
         } else rejectedChat++;
+    }
+    private boolean onHypixel() {
+        if (mc.isSingleplayer() || mc.getCurrentServerData() == null) return false;
+        String host = mc.getCurrentServerData().serverIP.toLowerCase(Locale.ROOT).split(":", 2)[0];
+        return host.equals("hypixel.net") || host.endsWith(".hypixel.net");
+    }
+    private String ownTeam(Scoreboard board) {
+        if (mc.thePlayer == null) return null;
+        ScorePlayerTeam team = board.getPlayersTeam(mc.thePlayer.getName());
+        if (team == null) return null;
+        String color = RosterRelay.team(team.getRegisteredName(), team.getColorPrefix(), team.getChatFormat().toString());
+        return color.equals("pending") ? null : Character.toUpperCase(color.charAt(0)) + color.substring(1);
     }
     private boolean hasInteractiveChat(IChatComponent component) {
         if (component.getChatStyle().getChatClickEvent() != null) return true;
@@ -257,7 +296,7 @@ public class CaptureMod {
     private class CaptureCommand extends CommandBase {
         @Override public String getCommandName() { return "bwcapture"; }
         @Override public String getCommandUsage(ICommandSender sender) {
-            return "/bwcapture auto [solo|doubles|3v3v3v3|off] | start [solo|doubles|3v3v3v3] | islands | pause | status | stop | mark <spawn|bed|kill|final|spectating|rejoin|end>";
+            return "/bwcapture auto [solo|doubles|3v3v3v3|off] | start [solo|doubles|3v3v3v3] | islands | pause | status | stats [player] | stop | mark <spawn|bed|kill|final|spectating|rejoin|end>";
         }
         @Override public int getRequiredPermissionLevel() { return 0; }
         @Override public boolean canCommandSenderUseCommand(ICommandSender sender) { return true; }
@@ -315,6 +354,14 @@ public class CaptureMod {
                 case "status":
                     tell(transport.status());
                     tell("auto=" + autoEnabled + "; mode=" + captureMode + "; " + (writer == null ? "Capture off." : writer.status() + "; roster=" + (islands || autoRoster) + "; " + writer.file()));
+                    break;
+                case "stats":
+                    if (args.length > 2 || (args.length == 2 && !args[1].matches("[A-Za-z0-9_]{1,16}"))) {
+                        tell(getCommandUsage(sender)); return;
+                    }
+                    String player = args.length == 2 ? args[1] : sender.getName();
+                    tell(tracker.status(player));
+                    if (mc.thePlayer != null && player.equalsIgnoreCase(mc.thePlayer.getName())) tell(tracker.localStatus());
                     break;
                 case "mark":
                     if (!active()) return;

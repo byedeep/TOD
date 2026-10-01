@@ -10,7 +10,8 @@ import time
 
 UUID = re.compile(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
 KINDS = {"capture_start", "capture_end", "snapshot", "message_candidate", "manual_marker",
-         "connection", "roster_gate_closed", "diagnostic_counts", "automation_marker"}
+         "connection", "roster_gate_closed", "diagnostic_counts", "automation_marker",
+         "tracker_event", "tracker_snapshot"}
 
 
 def read_capture(path):
@@ -203,12 +204,18 @@ def review_path(path, watch=False):
 def sanitise(rows, extra_names=()):
     names = set(extra_names)
     for row in rows:
+        payload = row["payload"]
+        if row["type"] == "tracker_event":
+            names.update(payload[key] for key in ("actor", "subject") if payload.get(key))
+        tracking = payload.get("tracking", {}) if row["type"] == "snapshot" else payload if row["type"] == "tracker_snapshot" else {}
+        names.update(tracking.get("players", {}))
         for person in row["payload"].get("participants", []):
             name = person.get("visible_name")
             if name:
                 names.add(name)
+    names = {name.lower() for name in names}
     aliases = {name: f"Player{i:03d}" for i, name in enumerate(sorted(names), 1)}
-    pattern = re.compile(r"(?<![A-Za-z0-9_])(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + r")(?![A-Za-z0-9_])") if names else None
+    pattern = re.compile(r"(?<![A-Za-z0-9_])(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + r")(?![A-Za-z0-9_])", re.I) if names else None
     uuid_aliases = {}
 
     def replace_uuid(match):
@@ -221,14 +228,17 @@ def sanitise(rows, extra_names=()):
         if isinstance(value, str):
             value = UUID.sub(replace_uuid, value)
             if pattern:
-                value = "".join(part if re.fullmatch(r"§[0-9a-fk-or]", part, re.I) else pattern.sub(lambda m: aliases[m[0]], part)
+                value = "".join(part if re.fullmatch(r"§[0-9a-fk-or]", part, re.I) else pattern.sub(lambda m: aliases[m[0].lower()], part)
                                 for part in re.split(r"(§[0-9a-fk-or])", value, flags=re.I))
             value = re.sub(r"\b(?:mini|mega)\d+[A-Za-z]*\b", "server-redacted", value)
             return value
         if isinstance(value, list):
             return [walk(v) for v in value]
         if isinstance(value, dict):
-            return {k: walk(v) for k, v in value.items() if k != "observed_at"}
+            # Tracker player names are map keys. Keep schema keys unchanged.
+            return {k: ({aliases.get(name.lower(), name): walk(counts) for name, counts in v.items()}
+                        if k == "players" and isinstance(v, dict) else walk(v))
+                    for k, v in value.items() if k != "observed_at"}
         return value
     return walk(rows)
 

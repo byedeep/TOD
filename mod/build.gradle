@@ -22,6 +22,15 @@ repositories { mavenCentral() }
 dependencies { testCompile 'junit:junit:4.13.2' }
 tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
 
+// Preserve upstream attribution/licences in installed artifacts as well as source.
+processResources {
+    from('../third_party/bedwar') {
+        include '*.txt'
+        into 'META-INF/licenses/bedwar'
+    }
+    from('../THIRD_PARTY_NOTICES.md') { into 'META-INF' }
+}
+
 // ForgeGradle 2.1 hardcodes obsolete HTTP asset URLs and swallows failures.
 // Keep its index task, but fetch assets over HTTPS with hash checks and fail on error.
 getAssets {

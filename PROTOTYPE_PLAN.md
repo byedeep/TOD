@@ -50,8 +50,12 @@ Work authorised for implementation: steps 1 and 2 plus the user-requested
 roster-only slice of steps 3 and 6: local authenticated snapshot delivery and
 Discord names/team colors. See `docs/DISCORD_ROSTER.md`. This slice uses a bounded
 JSON snapshot store and is not the full observation/event recording contract.
+On October 1 the user additionally authorised adapting BedWar Mod's tracking
+source. The mod now has a bundled Java event parser, in-memory segment/client-run
+counters and separate local tab totals; see `docs/BEDWAR_TRACKING.md`. This preview
+does not complete the durable recording core or full session lifecycle.
 No SQLite match ingestion, account API calls, identity confirmation claims or
-production event parsers are implemented in this stage.
+live-validated production event parsers are implemented in this stage.
 Steps 1–2 remain pending wherever real client/live match evidence is missing.
 
 Later defaults: Asia/Kolkata display timezone, UTC storage, no idle expiry or
